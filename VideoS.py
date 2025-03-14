@@ -6,6 +6,8 @@ import numpy as np
 from sklearn.cluster import KMeans
 import os
 from PIL import Image
+import time
+
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 resnet = models.resnet50(pretrained=True).to(device)
@@ -38,21 +40,17 @@ def extract_frames(video_path, frame_interval=30):
     cap.release()
     return frames, frame_indices
 
-
-def extract_features(frames):
+def extract_features(frames, batch_size=16):
     features = []
-    for frame in frames:
-        img = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)  
-        img = Image.fromarray(img)  
-        img = transform(img).unsqueeze(0).to(device)
+    images = [Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)) for frame in frames]
+    images = torch.stack([transform(img) for img in images]).to(device)   
+    with torch.no_grad():  
+        for i in range(0, len(images), batch_size):
+            batch = images[i:i+batch_size] 
+            feats = resnet(batch) 
+            features.append(feats.cpu().numpy())  
 
-        with torch.no_grad():
-            feat = resnet(img)
-        
-        features.append(feat.cpu().numpy().flatten())
-    
-    return np.array(features)
-
+    return np.concatenate(features, axis=0)
 
 def select_keyframes(features, num_clusters=5):
     kmeans = KMeans(n_clusters=num_clusters, random_state=42, n_init=10)
@@ -81,5 +79,10 @@ def summarize_video(video_path, frame_interval=30, num_keyframes=5):
     keyframe_indices = select_keyframes(features, num_keyframes)
     save_keyframes(frames, keyframe_indices)
 
-video_path = "input_video.mp4" 
-summarize_video(video_path, frame_interval=30, num_keyframes=5)
+
+video_path = "sample.mp4" 
+start = time.time()  
+summarize_video(video_path, frame_interval=10, num_keyframes=15)
+torch.cuda.synchronize()
+end = time.time()
+print(f"Generation of Keyframes on {device} took {end - start:.4f} seconds")
