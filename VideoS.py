@@ -1,3 +1,10 @@
+#using ResNet to extract features frame by frame , Kmeans clustring for making the representative of all the clusters.
+#ResNet is a spatial feature extractor, meaning it analyzes only individual frames/images and does not consider time or motion across frames.
+"""
+It extracts features from a single image at a time.
+It focuses on textures, edges, shapes, and objects in an image.
+It does NOT understand motion or temporal relationships
+"""
 import cv2
 import torch
 import torchvision.transforms as transforms
@@ -80,7 +87,7 @@ def summarize_video(video_path, frame_interval=30, num_keyframes=5):
     save_keyframes(frames, keyframe_indices)
 
 
-video_path = "sample.mp4" 
+video_path = "nasa.mp4" 
 start = time.time()  
 summarize_video(video_path, frame_interval=10, num_keyframes=15)
 torch.cuda.synchronize()
